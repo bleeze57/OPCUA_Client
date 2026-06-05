@@ -1,198 +1,89 @@
-﻿using Opc.Ua;
-using Opc.Ua.Client;
+﻿
+using OPCUA_Client.Models;
+using OPCUA_Client.Services;
+using Microsoft.Extensions.Configuration;
+using Opc.Ua;       
 using Opc.Ua.Configuration;
-using System.Xml.Linq;
-using static System.Collections.Specialized.BitVector32;
 
-class Program
+
+var config = new ApplicationConfiguration()
 {
-    static async Task Main(string[] args)
+    ApplicationName = "SimpleOpcUaClient",
+    ApplicationType = ApplicationType.Client,
+
+    SecurityConfiguration = new SecurityConfiguration
     {
-        try
+        ApplicationCertificate = new CertificateIdentifier
         {
-            var config = new ApplicationConfiguration()
-            {
-                ApplicationName = "SimpleOpcUaClient",
-                ApplicationType = ApplicationType.Client,
+            StoreType = "Directory",
+            StorePath = "pki/own",
+            SubjectName = "CN=SimpleOpcUaClient"
+        },
 
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = new CertificateIdentifier
-                    {
-                        StoreType = "Directory",
-                        StorePath = "pki/own",
-                        SubjectName = "CN=SimpleOpcUaClient"
-                    },
-
-                    TrustedPeerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "pki/trusted"
-                    },
-
-                    TrustedIssuerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "pki/issuer"
-                    },
-
-                    RejectedCertificateStore = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "pki/rejected"
-                    },
-
-                    AutoAcceptUntrustedCertificates = true,
-                    RejectSHA1SignedCertificates = false,
-                    MinimumCertificateKeySize = 1024
-                },
-
-                TransportConfigurations = new TransportConfigurationCollection(),
-
-                TransportQuotas = new TransportQuotas
-                {
-                    OperationTimeout = 15000
-                },
-
-                ClientConfiguration = new ClientConfiguration
-                {
-                    DefaultSessionTimeout = 60000
-                }
-            };
-
-            await config.ValidateAsync(ApplicationType.Client);
-
-            config.CertificateValidator.CertificateValidation += (s, e) =>
-            {
-                Console.WriteLine($"Accepting Certificate: {e.Certificate.Subject}");
-                e.Accept = true;
-            };
-
-            string serverUrl = "opc.tcp://192.168.87.102:52220";
-
-            Console.WriteLine($"Connecting to: {serverUrl}");
-
-            var selectedEndpoint =
-                CoreClientUtils.SelectEndpoint(
-                    config,
-                    serverUrl,
-                    false);
-
-            var endpointConfiguration =
-                EndpointConfiguration.Create(config);
-
-            var endpoint =
-                new ConfiguredEndpoint(
-                    null,
-                    selectedEndpoint,
-                    endpointConfiguration);
-
-            var session = await Session.Create(
-                config,
-                endpoint,
-                false,
-                "SimpleOpcUaClient",
-                60000,
-                null,
-                null);
-
-            Console.WriteLine("Connected Successfully!");
-
-            //-------------------------------------------------
-            // CREATE SUBSCRIPTION
-            //-------------------------------------------------
-
-            var subscription = new Subscription(session.DefaultSubscription)
-            {
-                PublishingInterval = 1000
-            };
-
-            //-------------------------------------------------
-            // TESTDADDRESS
-            //-------------------------------------------------
-
-            var testDAddress = new MonitoredItem(subscription.DefaultItem)
-            {
-                DisplayName = "TestDAddress",
-                StartNodeId =
-                    new NodeId(
-                        "DataSource::PLC_R04_CPU.TestDAddress",
-                        2),
-
-                AttributeId = Attributes.Value,
-                SamplingInterval = 1000
-            };
-
-            testDAddress.Notification += TestDAddressChanged;
-
-            //-------------------------------------------------
-            // TESTMADDRESS
-            //-------------------------------------------------
-
-            var testMAddress = new MonitoredItem(subscription.DefaultItem)
-            {
-                DisplayName = "TestMAddress",
-                StartNodeId =
-                    new NodeId(
-                        "DataSource::PLC_R04_CPU.TestMAddress",
-                        2),
-
-                AttributeId = Attributes.Value,
-                SamplingInterval = 1000
-            };
-
-            testMAddress.Notification += TestMAddressChanged;
-
-            //-------------------------------------------------
-            // ADD ITEMS TO SUBSCRIPTION
-            //-------------------------------------------------
-
-            subscription.AddItem(testDAddress);
-            subscription.AddItem(testMAddress);
-
-            session.AddSubscription(subscription);
-
-            subscription.Create();
-
-            Console.WriteLine();
-            Console.WriteLine("Subscription Created");
-            Console.WriteLine("Monitoring:");
-            Console.WriteLine(" - TestDAddress");
-            Console.WriteLine(" - TestMAddress");
-            Console.WriteLine();
-
-            Console.WriteLine("Press ENTER to exit...");
-            Console.ReadLine();
-
-            subscription.Delete(true);
-            session.Close();
-        }
-        catch (Exception ex)
+        TrustedPeerCertificates = new CertificateTrustList
         {
-            Console.WriteLine("ERROR:");
-            Console.WriteLine(ex);
-        }
-    }
+            StoreType = "Directory",
+            StorePath = "pki/trusted"
+        },
 
-    private static void TestDAddressChanged(
-        MonitoredItem item,
-        MonitoredItemNotificationEventArgs e)
+        TrustedIssuerCertificates = new CertificateTrustList
+        {
+            StoreType = "Directory",
+            StorePath = "pki/issuer"
+        },
+
+        RejectedCertificateStore = new CertificateTrustList
+        {
+            StoreType = "Directory",
+            StorePath = "pki/rejected"
+        },
+
+        AutoAcceptUntrustedCertificates = true,
+        RejectSHA1SignedCertificates = false,
+        MinimumCertificateKeySize = 1024
+    },
+
+    TransportConfigurations =
+        new TransportConfigurationCollection(),
+
+    TransportQuotas = new TransportQuotas
     {
-        foreach (var value in item.DequeueValues())
-        {
-            Console.WriteLine(
-                $"[{DateTime.Now:HH:mm:ss}] {item.DisplayName} = {value.Value}");
-        }
-    }
+        OperationTimeout = 15000
+    },
 
-    private static void TestMAddressChanged(
-        MonitoredItem item,
-        MonitoredItemNotificationEventArgs e)
+    ClientConfiguration = new ClientConfiguration
     {
-        foreach (var value in item.DequeueValues())
-        {
-            Console.WriteLine(
-                $"[{DateTime.Now:HH:mm:ss}] {item.DisplayName} = {value.Value}");
-        }
+        DefaultSessionTimeout = 60000
     }
-}
+};
+
+await config.Validate(ApplicationType.Client);
+
+config.CertificateValidator.CertificateValidation += (s, e) =>
+{
+    Console.WriteLine(
+        $"Accepting Certificate: {e.Certificate.Subject}");
+
+    e.Accept = true;
+};
+
+var opc =
+    new OpcClientService();
+
+await opc.Connect(
+    config,
+    "opc.tcp://192.168.87.102:52220");
+
+opc.Subscribe(
+    OpcTags.TestDAddress,
+    nameof(OpcTags.TestDAddress));
+
+opc.Subscribe(
+    OpcTags.TestMAddress,
+    nameof(OpcTags.TestMAddress));
+
+Console.WriteLine();
+Console.WriteLine("Press ENTER to exit...");
+Console.ReadLine();
+
+opc.Disconnect();
