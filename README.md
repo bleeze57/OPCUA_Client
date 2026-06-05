@@ -12,8 +12,8 @@
 
 **Config**
 
-in Program.cs change "opc.tcp://address:port" with your specific address and port
+in Program.cs change `"opc.tcp://address:port"` with your specific address and port
 
 **to change node subscription**
 
-in Models/OpcTags.cs, the line [public const string TestDAddress ="ns=2;s=DataSource::PLC_R04_CPU.TestDAddress";] is my default NodeId for my OPC server. you can change the whole line to your server NodeId
+in Models/OpcTags.cs, the line `public const string TestDAddress ="ns=2;s=DataSource::PLC_R04_CPU.TestDAddress";` is my default NodeId for my OPC server. you can change the whole line to your server NodeId
