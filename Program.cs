@@ -72,7 +72,7 @@ var opc =
 
 await opc.Connect(
     config,
-    "opc.tcp://192.168.87.102:52220");
+    "opc.tcp://address:port");
 
 opc.Subscribe(
     OpcTags.TestDAddress,
