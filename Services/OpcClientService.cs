@@ -7,23 +7,31 @@ namespace OPCUA_Client.Services;
 
 public class OpcClientService
 {
-    private Session? _session;
+    private ISession? _session;
     private Subscription? _subscription;
 
     public bool IsConnected => _session != null;
 
     public async Task Connect(
-        ApplicationConfiguration config,
-        string serverUrl)
+    ApplicationConfiguration config,
+    string serverUrl)
     {
         Console.WriteLine(
             $"Connecting to: {serverUrl}");
 
+       
+
+        var telemetry =
+    DefaultTelemetry.Create(logging => { });
+
         var selectedEndpoint =
-            CoreClientUtils.SelectEndpoint(
+            await CoreClientUtils.SelectEndpointAsync(
                 config,
                 serverUrl,
-                false);
+                false,
+                CoreClientUtils.DefaultDiscoverTimeout,
+                telemetry,
+                CancellationToken.None);
 
         var endpointConfiguration =
             EndpointConfiguration.Create(config);
@@ -34,14 +42,20 @@ public class OpcClientService
                 selectedEndpoint,
                 endpointConfiguration);
 
-        _session = await Session.Create(
-            config,
-            endpoint,
-            false,
-            "SimpleOpcUaClient",
-            60000,
-            null,
-            null);
+        var sessionFactory =
+            new DefaultSessionFactory(telemetry);
+
+        _session =
+            await sessionFactory.CreateAsync(
+                config,
+                endpoint,
+                false,
+                false,
+                "SimpleOpcUaClient",
+                60000,
+                new UserIdentity(),
+                null,
+                CancellationToken.None);
 
         Console.WriteLine(
             "Connected Successfully!");
@@ -66,7 +80,7 @@ public class OpcClientService
 
             _session.AddSubscription(_subscription);
 
-            _subscription.Create();
+            _subscription.CreateAsync();
 
             Console.WriteLine(
                 "Subscription Created");
@@ -86,7 +100,7 @@ public class OpcClientService
 
         _subscription.AddItem(monitoredItem);
 
-        _subscription.ApplyChanges();
+        _subscription.ApplyChangesAsync();
 
         Console.WriteLine(
             $"Monitoring: {displayName}");
@@ -96,10 +110,10 @@ public class OpcClientService
     {
         if (_subscription != null)
         {
-            _subscription.Delete(true);
+            _subscription.DeleteAsync(true);
         }
 
-        _session?.Close();
+        _session?.CloseAsync();
 
         Console.WriteLine(
             "Disconnected.");

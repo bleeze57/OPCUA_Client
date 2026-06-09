@@ -57,7 +57,7 @@ var config = new ApplicationConfiguration()
     }
 };
 
-await config.Validate(ApplicationType.Client);
+await config.ValidateAsync(ApplicationType.Client);
 
 config.CertificateValidator.CertificateValidation += (s, e) =>
 {
